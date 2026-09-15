@@ -10,3 +10,8 @@ class TestCharacter(CharacterEntity):
     def do(self, wrld):
         # Your code here
         pass
+    
+    def createHeuristic(self, wrld):
+        pass
+    
+    
