@@ -48,7 +48,7 @@ class TestCharacter(CharacterEntity):
         for x in range(wrld.width()):
             for y in range(wrld.height()):
                 if wrld.wall_at(x, y):
-                    heuristics[y][x] = 100
+                    heuristics[y][x] = 1000
                 
         pass
     
