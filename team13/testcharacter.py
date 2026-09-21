@@ -49,29 +49,34 @@ class TestCharacter(CharacterEntity):
                     bravery = 0
 
                 # If monster is level on x or y moving away is better than staying put
-                if monsters[0].x != 0 and random() > bravery:
+                if monsters[0].x != self.x and not bravery:
                     new_dx = -self.clamp(monsters[0].x, -1, 1)
-                    if (self.x + new_dx < wrld.width()) and not wrld.wall_at(self.x + new_dx, self.y + dy):
+                    if (self.x + new_dx > 0) and (self.x + new_dx < wrld.width()) and not wrld.wall_at(self.x + new_dx, self.y + dy):
                         dx = new_dx
                     else:
+                        dx = 0
                         # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
                         if dy == 0 and monsters[0].dy == 0:
                             dy = 1
-                        dx = 0
+                        elif dy == 0:
+                            dy = -self.clamp(monsters[0].y, -1, 1)
 
-                if monsters[0].y != 0 and random() > bravery:
+
+                if monsters[0].y != self.y and not bravery:
                     new_dy = -self.clamp(monsters[0].y, -1, 1)
-                    if not wrld.wall_at(self.x + dx, self.y + new_dy) and (self.y + new_dy < wrld.height()):
+                    if not wrld.wall_at(self.x + dx, self.y + new_dy) and (self.y + new_dy < wrld.height()) and (self.y + new_dy > 0):
                         dy = new_dy
                     else:
                         # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
                         dy = 0
                         if dx == 0 and monsters[0].dx == 0:
                             dx = 1
+                        elif dx == 0:
+                            dx = -self.clamp(monsters[0].x, -1, 1)
 
                 # recalculate optimal path because we deviated from it after escaping
                 self.state = 0
-
+            print(dx, dy)
             self.move(dx, dy)        
     
     def createHeuristic(self, wrld):
