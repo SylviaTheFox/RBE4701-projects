@@ -19,6 +19,7 @@ class RealWorld(World):
 
     def add_character(self, c):
         """Adds the given character to the world"""
+        print(c.mover)
         self.characters[self.index(c.x,c.y)] = [c]
         self.scores[c.name] = -self.time
 

@@ -18,107 +18,98 @@ class TestCharacter(CharacterEntity):
     exit = (8, 18)
     optimal_path = []
     heuristic = []
+    # INITIAL WEIGHTS FOR PARAMETERS: exit dist, monster dist, bomb dx, bomb dy, hole dist, 
+    weights = [1, -1, -1, -1, 1]
+
+    def __init__(self, name, avatar, x, y, mover):
+        CharacterEntity.__init__(self, name=name, avatar=avatar, x=x, y=y)
+        self.mover = mover
 
     def do(self, wrld):
-        # self.heuristic = self.createHeuristic(wrld)
-
-        # path = self.a_star(wrld)
-
-        # dx = path[0][0] - self.x
-        # dy = path[0][1] - self.y
-
-        # self.move(dx, dy)
-        if self.state == 0:
-            self.optimal_path = self.a_star(wrld)
-            self.state = 1
-
-        if self.state == 1:
-            next = self.optimal_path.pop(0)
-            dx = next[0] - self.x
-            dy = next[1] - self.y
-            monsters = self.look_for_monster(wrld, 5)
-            if monsters:
-                bravery = 0
-                # If below the monster, most likely already passed it and are safe so don't waste time escaping and just run for the exit
-                if monsters[0].y < self.y:
-                    bravery = 1
-                # If we are a certain distance from monster after we both move, proceed. otherwise go the other way to
-                elif abs((self.x + dx) - (monsters[0].dx + monsters[0].x)) >= monsters[1] or abs((self.y + dy) - (monsters[0].dy + monsters[0].y)) >= monsters[1]:
-                    bravery = 1
-                else:
-                    bravery = 0
-
-                # If monster is level on x or y moving away is better than staying put
-                if monsters[0].x != self.x and not bravery:
-                    new_dx = -self.clamp(monsters[0].x, -1, 1)
-                    if (self.x + new_dx > 0) and (self.x + new_dx < wrld.width()) and not wrld.wall_at(self.x + new_dx, self.y + dy):
-                        dx = new_dx
-                    else:
-                        dx = 0
-                        # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
-                        if dy == 0 and monsters[0].dy == 0:
-                            dy = 1
-                        elif dy == 0:
-                            dy = -self.clamp(monsters[0].y, -1, 1)
-
-
-                if monsters[0].y != self.y and not bravery:
-                    new_dy = -self.clamp(monsters[0].y, -1, 1)
-                    if not wrld.wall_at(self.x + dx, self.y + new_dy) and (self.y + new_dy < wrld.height()) and (self.y + new_dy > 0):
-                        dy = new_dy
-                    else:
-                        # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
-                        dy = 0
-                        if dx == 0 and monsters[0].dx == 0:
-                            dx = 1
-                        elif dx == 0:
-                            dx = -self.clamp(monsters[0].x, -1, 1)
-
-                # recalculate optimal path because we deviated from it after escaping
-                self.state = 0
-            print(dx, dy)
-            self.move(dx, dy)        
-    
-    def createHeuristic(self, wrld):
-        heuristics = [[0]*wrld.width()]*wrld.height()
-        # monster
-        for x in range(wrld.width()):
-            for y in range(wrld.height()):
-                if wrld.monsters_at(x,y):
-                    heuristics[y][x] += 100
-                    if y > 0:
-                        heuristics[y-1][x] += 50
-                        if x > 0:
-                            heuristics[y-1][x-1] += 15
-                        if x < wrld.width() - 1:
-                            heuristics[y-1][x+1] += 15
-                    if x > 0:
-                        heuristics[y][x-1] += 50
-                    if y < wrld.height() - 1:
-                        heuristics[y+1][x] += 50
-                        if x > 0:
-                            heuristics[y+1][x-1] += 15
-                        if x < wrld.width() - 1:
-                            heuristics[y+1][x+1] += 15
-                    if x < wrld.width() - 1:
-                        heuristics[y][x+1] += 50
-                    if y > 1:
-                        heuristics[y-2][x] += 15
-                    if x > 1:
-                        heuristics[y][x-2] += 15
-                    if y < wrld.height() - 2:
-                        heuristics[y+2][x] += 15
-                    if x < wrld.width() - 2:
-                        heuristics[y][x+2] += 15
-                    
         
-        # wall
-        for x in range(wrld.width()):
-            for y in range(wrld.height()):
-                if wrld.wall_at(x, y):
-                    heuristics[y][x] = 1000
+        possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y))
+        moves_dict = {}
+        monsters = self.look_for_monster(wrld, 5)
+        for move in possible_moves:
+            if monsters:
+                # TODO: Better way to compute parameters based on state?
+                moves_dict[move] = [self.square_dist(move, self.exit), self.square_dist(move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))]
+            else:
+                moves_dict[move] = [self.square_dist(move, self.exit), 100000000]
 
-        return heuristics
+        (best_move, _) = self.mover.best_move(moves_dict)
+        self.move(best_move[0] - self.x, best_move[1] - self.y)
+
+        (next_wrld, _) = wrld.next()
+        reward = next_wrld.scores[self.name]
+
+        future_moves = self.look_for_empty_cell(next_wrld, best_move)
+        monsters = self.look_for_monster(next_wrld, 5)
+        moves_dict = {}
+        for move in future_moves:
+            if monsters:
+                moves_dict[move] = [self.square_dist(move, self.exit), self.square_dist(move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))]
+            else:
+                moves_dict[move] = [self.square_dist(move, self.exit), 100000000]
+        if monsters:
+            # TODO: Use a proper reward system, the game's sucks
+            self.mover.update(reward+5000, moves_dict, [self.square_dist(best_move, self.exit), self.square_dist(best_move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))])
+        else:
+            self.mover.update(reward+5000, moves_dict, [self.square_dist(best_move, self.exit), 100000000])
+        
+        # print(wrld.scores)
+        # # self.move(dx, dy)
+        # if self.state == 0:
+        #     self.optimal_path = self.a_star(wrld)
+        #     self.state = 1
+
+        # if self.state == 1:
+        #     next = self.optimal_path.pop(0)
+        #     dx = next[0] - self.x
+        #     dy = next[1] - self.y
+        #     monsters = self.look_for_monster(wrld, 5)
+        #     if monsters:
+        #         bravery = 0
+        #         # If below the monster, most likely already passed it and are safe so don't waste time escaping and just run for the exit
+        #         if monsters[0].y < self.y:
+        #             bravery = 1
+        #         # If we are a certain distance from monster after we both move, proceed. otherwise go the other way to
+        #         elif abs((self.x + dx) - (monsters[0].dx + monsters[0].x)) >= monsters[1] or abs((self.y + dy) - (monsters[0].dy + monsters[0].y)) >= monsters[1]:
+        #             bravery = 1
+        #         else:
+        #             bravery = 0
+
+        #         # If monster is level on x or y moving away is better than staying put
+        #         if monsters[0].x != self.x and not bravery:
+        #             new_dx = -self.clamp(monsters[0].x, -1, 1)
+        #             if (self.x + new_dx > 0) and (self.x + new_dx < wrld.width()) and not wrld.wall_at(self.x + new_dx, self.y + dy):
+        #                 dx = new_dx
+        #             else:
+        #                 dx = 0
+        #                 # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
+        #                 if dy == 0 and monsters[0].dy == 0:
+        #                     dy = 1
+        #                 elif dy == 0:
+        #                     dy = -self.clamp(monsters[0].y, -1, 1)
+
+
+        #         if monsters[0].y != self.y and not bravery:
+        #             new_dy = -self.clamp(monsters[0].y, -1, 1)
+        #             if not wrld.wall_at(self.x + dx, self.y + new_dy) and (self.y + new_dy < wrld.height()) and (self.y + new_dy > 0):
+        #                 dy = new_dy
+        #             else:
+        #                 # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
+        #                 dy = 0
+        #                 if dx == 0 and monsters[0].dx == 0:
+        #                     dx = 1
+        #                 elif dx == 0:
+        #                     dx = -self.clamp(monsters[0].x, -1, 1)
+
+        #         # recalculate optimal path because we deviated from it after escaping
+        #         self.state = 0
+        #     print(dx, dy)
+        #     self.move(dx, dy)        
+    
     
     def clamp(self, num, min_val, max_val):
         return max(min_val, min(num, max_val))

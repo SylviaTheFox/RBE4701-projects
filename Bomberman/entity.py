@@ -254,7 +254,7 @@ class MonsterEntity(AIEntity, MovableEntity):
 class CharacterEntity(AIEntity, MovableEntity):
     """Basic definitions for a custom-made character"""
 
-    def __init__(self, name, avatar, x, y):
+    def __init__(self, name, avatar, x, y, mover=None):
         AIEntity.__init__(self, name, avatar)
         MovableEntity.__init__(self, x, y)
         # Whether this character wants to place a bomb
@@ -284,6 +284,7 @@ class CharacterEntity(AIEntity, MovableEntity):
         new.dx = character.dx
         new.dy = character.dy
         new.maybe_place_bomb = character.maybe_place_bomb
+        new.mover = character.mover
         return new
 
     def __hash__(self):
