@@ -45,6 +45,8 @@ class Game:
                             raise RuntimeError("There can be only one exit cell, first one found at", x, y)
                     elif ln[x+1] == 'W':
                         gm.world.add_wall(x,y)
+                    elif ln[x+1] == 'B':
+                        gm.world.add_bomb(x, y, None)
             # All done
             return gm
 

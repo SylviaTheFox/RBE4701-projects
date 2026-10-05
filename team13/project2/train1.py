@@ -7,7 +7,7 @@ from monsters.stupid_monster import StupidMonster
 from game import Game
 
 # TODO This is your code!
-sys.path.insert(1, '../teamNN')
+sys.path.insert(1, '../team13')
 from testcharacter import TestCharacter
 from interactivecharacter import InteractiveCharacter
 from qlearner import QLearner
