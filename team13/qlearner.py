@@ -62,3 +62,27 @@ class QLearner():
             self.weights[i] += self.learning_rate * feature(current_move[i]) * delta
         print(self.weights)
 
+
+class Drill1(QLearner):
+
+    def reward(self, wrld, curr_pos):
+        pass
+
+    def get_parameters(self, wrld, curr_pos):
+        pass
+
+class Drill2(QLearner):
+
+    def reward(self, wrld, curr_pos):
+        pass
+
+    def get_parameters(self, wrld, curr_pos):
+        pass
+
+class Drill3(QLearner):
+
+    def reward(self, wrld, curr_pos):
+        pass
+
+    def get_parameters(self, wrld, curr_pos):
+        pass
