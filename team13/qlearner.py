@@ -144,7 +144,7 @@ class Drill1(QLearner):
             score += 5000
         elif wrld.monsters_at(curr_pos[0], curr_pos[1]):
             score -= 5000
-        return score
+        return score mkmk
 
 
 class Drill2(QLearner):
