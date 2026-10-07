@@ -23,7 +23,7 @@ g.add_monster(StupidMonster("stupid", # name
 # TODO Add your character
 g.add_character(TestCharacter("me", # name
                               "C",  # avatar
-                              0, 0  # position
+                              0, 0, mover=None  # position
 ))
 
 # Run!

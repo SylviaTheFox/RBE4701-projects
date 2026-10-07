@@ -10,18 +10,26 @@ from game import Game
 sys.path.insert(1, '../team13')
 from testcharacter import TestCharacter
 from interactivecharacter import InteractiveCharacter
-from qlearner import QLearner
+from qlearner import QLearner, Drill1
+
 features = [
     lambda x: 1/(1+x),
-    lambda x: 1/(1+x)
+    lambda x: 1/(1+x),
+    lambda x: 0, 
+    lambda x: 0,
+    lambda x: 0,
+    lambda x: 0,
+    lambda x: 1/(1+x),
+    lambda x: 0,
+    lambda x: 0
 ]
 
-weights = [1, -10]
+weights = [-1, -1, 0, 0, 0, 0, 1, 0, 0]
 
 for i in range(20):
     # Create the game
     g = Game.fromfile('map_train_1.txt')
-    learner = QLearner(weights=weights, features=features)
+    learner = Drill1(weights=weights, features=features)
     char = TestCharacter("me", # name
                               "C",  # avatar
                               0, 0,  # position
