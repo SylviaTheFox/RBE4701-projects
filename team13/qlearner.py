@@ -71,10 +71,10 @@ class QLearner():
         wrld = world object
         curr_pos = where we are looking at
         
-        return: [abs(dx to closest monster), abs(dy to closest monster), time till explosion or 0, abs(dx to closest wall), abs(dy to closest wall), bomb planted?]
+        return: [abs(dx to closest monster), abs(dy to closest monster), time till explosion or 0, abs(dx to closest wall), abs(dy to closest wall), bomb planted?, abs(dx to hole or exit), dy to hole or exit]
         """
     def get_prameters(self, wrld, curr_pos):
-        parameters = [0] * 6
+        parameters = [0] * 8
         monsters = []
         my_pos = (0,0)
         for x in range(wrld.width() - 1):
@@ -108,7 +108,46 @@ class QLearner():
             if curr_pos[1] + counter >= wrld.height or curr_pos[1] - counter < 0 or wrld.wall_at(curr_pos[0], curr_pos[1] + counter) or wrld.wall_at(curr_pos[0], curr_pos[1] - counter):
                 parameters[4] = counter
             
+        # parameters[6] = 0
+        # while parameters[6] + my_pos[0] < wrld.height and not wrld.wall_at(my_pos[0 + parameters[6]], my_pos[1]):
+        #     parameters[6] += 1
+
+        search = self.search_for_hole(wrld, curr_pos[0], my_pos[1])
+        if search:
+            parameters[6] = search[0]
+            parameters[7] = search[1] + my_pos[1] - curr_pos[1]
+        
         return parameters
+    
+        """
+        finds the dx and dy to the nearest hole below, or false if no hole
+        self = self
+        wrld = world
+        start_x, start_y = starting positions for search
+        """
+    def search_for_hole(self, wrld, start_x, start_y):
+        dy = 0
+        walls_found = False
+        for y in range(start_y + 1, wrld.height()):
+            for x in range(0, wrld.width()):
+                if wrld.wall_at(x, y):
+                    walls_found = True
+                    dy = y - start_y
+                    break
+            if walls_found:
+                break
+        if not walls_found:
+            # HANDLE MOVING TO EXIT
+            dx = wrld.width() - start_x - 1
+            dy = wrld.height() - start_y - 1
+            return (dx, dy)
+        for dx in range(wrld.width()):
+            if start_x - dx >= 0 and not wrld.wall_at(dx+start_x, start_y + dy):
+                return (dx, dy)
+            if start_x + dx < wrld.width() and not wrld.wall_at(start_x - dx, start_y + dy):
+                return (dx, dy)
+            
+        return False
 
 
 class Drill1(QLearner):
