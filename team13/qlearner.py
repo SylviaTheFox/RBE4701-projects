@@ -1,5 +1,5 @@
 import math
-
+import pygame
 
 class QLearner():
 
@@ -30,6 +30,8 @@ class QLearner():
         for move, parameters in moves.items():
             # Iterate through all features to compute
             score = self.evaluate_score(parameters)
+            # print(score)
+            # print(parameters)
             if score > best_score:
                 best_score = score
                 best_move = move
@@ -66,6 +68,8 @@ class QLearner():
         print(self.weights)
         
         
+       
+    def get_parameters(self, wrld, curr_pos):
         """
         self = self
         wrld = world object
@@ -76,16 +80,18 @@ class QLearner():
     def get_prameters(self, wrld, curr_pos):
         parameters = [0] * 8
         monsters = []
-        my_pos = (0,0)
-        for x in range(wrld.width() - 1):
-            for y in range(wrld.height() - 1):
+        bomb = ()
+        my_pos = curr_pos
+        parameters[5] = -1
+        for x in range(wrld.width()):
+            for y in range(wrld.height()):
                 if wrld.monsters_at(x,y):
                     monsters.append((x, y))
-                if wrld.character_at((x,y)):
-                    my_pos = (x,y)
-                    
+                if wrld.bomb_at(x, y):
+                    bomb = wrld.bomb_at(x, y)
+                
         if (wrld.explosion_at(curr_pos[0], curr_pos[1])):
-            parameters[2] = wrld.explosion_at(curr_pos[0], curr_pos[1]).timer.timer + 1
+            #parameters[2] = wrld.explosion_at(curr_pos[0], curr_pos[1]).timer.timer + 1
             parameters[5] = 1
                     
         dist = 9999999999999999
@@ -119,13 +125,14 @@ class QLearner():
         
         return parameters
     
+       
+    def search_for_hole(self, wrld, start_x, start_y):
         """
         finds the dx and dy to the nearest hole below, or false if no hole
         self = self
         wrld = world
         start_x, start_y = starting positions for search
         """
-    def search_for_hole(self, wrld, start_x, start_y):
         dy = 0
         walls_found = False
         for y in range(start_y + 1, wrld.height()):
@@ -153,23 +160,38 @@ class QLearner():
 class Drill1(QLearner):
 
     def reward(self, wrld, curr_pos):
-        pass
+        score = wrld.time - 5000
+        if wrld.exit_at(curr_pos[0], curr_pos[1]):
+            score += 5000
+        elif wrld.monsters_at(curr_pos[0], curr_pos[1]):
+            score -= 5000
+        return score
 
-    def get_parameters(self, wrld, curr_pos):
-        pass
 
 class Drill2(QLearner):
 
     def reward(self, wrld, curr_pos):
-        pass
+        score = wrld.time - 5000
+        if wrld.monsters_at(curr_pos[0], curr_pos[1]) or wrld.explosion_at(curr_pos[0], curr_pos[1]):
+            score -= 5000
+        elif not(wrld.explosion_at(4, 2)) and not(wrld.bomb_at(4, 2)):
+            score += 5000
+            quit_event = pygame.event.Event(pygame.QUIT)
 
-    def get_parameters(self, wrld, curr_pos):
-        pass
+            pygame.event.post(quit_event)
+        return score
+
+   
 
 class Drill3(QLearner):
 
     def reward(self, wrld, curr_pos):
-        pass
+        score = wrld.time - 5000
+        if wrld.monsters_at(curr_pos[0], curr_pos[1]) or wrld.explosion_at(curr_pos[0], curr_pos[1]):
+            score -= 5000
+        elif curr_pos(1) > 3:
+            score += 5000
+            quit_event = pygame.event.Event(pygame.QUIT)
+            pygame.event.post(quit_event)
+        return score
 
-    def get_parameters(self, wrld, curr_pos):
-        pass

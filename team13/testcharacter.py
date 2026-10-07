@@ -10,10 +10,11 @@ from monsters.stupid_monster import StupidMonster
 from monsters.selfpreserving_monster import SelfPreservingMonster
 import math
 
+
 class TestCharacter(CharacterEntity):
 
     # State 0 is haven't done A*, state 1 is following A*
-    state = 0
+    state = 2
     # Exit coords in our current map
     exit = (8, 18)
     optimal_path = []
@@ -43,8 +44,25 @@ class TestCharacter(CharacterEntity):
 
         # Drill 1 in which we're in the same block as the exit and a monster
         if self.state == 2:
-            #TODO
-            pass
+            possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y))
+            moves_dict = {}
+            for move in possible_moves:
+                moves_dict[move] = self.mover.get_parameters(wrld, move)
+            
+            (best_move, _) = self.mover.best_move(moves_dict)
+            print(best_move)
+            self.move(best_move[0] - self.x, best_move[1] - self.y)
+        
+            (next_wrld, _) = wrld.next()
+            reward = self.mover.reward(wrld, best_move)
+            
+            future_moves = self.look_for_empty_cell(next_wrld, best_move)
+            moves_dict = {}
+            for move in future_moves:
+                moves_dict[move] = self.mover.get_parameters(next_wrld, move)
+
+            self.mover.update(reward, moves_dict, self.mover.get_parameters(wrld, best_move))
+            self.move(best_move[0] - self.x, best_move[1] - self.y)
 
         # Drill 2 in which there's a bomb next to the wall below us, waiting for it to explode and the blast to clear
         if self.state == 3:
@@ -55,37 +73,7 @@ class TestCharacter(CharacterEntity):
         if self.state == 4:
             # TODO
             pass
-
-        self.move(dx, dy)
-        # possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y))
-        # moves_dict = {}
-        # monsters = self.look_for_monster(wrld, 5)
-        # for move in possible_moves:
-        #     if monsters:
-        #         # TODO: Better way to compute parameters based on state?
-        #         moves_dict[move] = [self.square_dist(move, self.exit), self.square_dist(move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))]
-        #     else:
-        #         moves_dict[move] = [self.square_dist(move, self.exit), 100000000]
-
-        # (best_move, _) = self.mover.best_move(moves_dict)
-        # self.move(best_move[0] - self.x, best_move[1] - self.y)
-
-        # (next_wrld, _) = wrld.next()
-        # reward = next_wrld.scores[self.name]
-
-        # future_moves = self.look_for_empty_cell(next_wrld, best_move)
-        # monsters = self.look_for_monster(next_wrld, 5)
-        # moves_dict = {}
-        # for move in future_moves:
-        #     if monsters:
-        #         moves_dict[move] = [self.square_dist(move, self.exit), self.square_dist(move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))]
-        #     else:
-        #         moves_dict[move] = [self.square_dist(move, self.exit), 100000000]
-        # if monsters:
-        #     # TODO: Use a proper reward system, the game's sucksx
-        #     self.mover.update(reward+5000, moves_dict, [self.square_dist(best_move, self.exit), self.square_dist(best_move, (monsters[0].x + monsters[0].dx, monsters[0].y + monsters[0].dy))])
-        # else:
-        #     self.mover.update(reward+5000, moves_dict, [self.square_dist(best_move, self.exit), 100000000])
+        
         
         
 

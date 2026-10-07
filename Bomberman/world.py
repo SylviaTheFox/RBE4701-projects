@@ -376,6 +376,8 @@ class World:
         """Updates scores and manages events"""
         for e in self.events:
             if e.tpe == Event.BOMB_HIT_WALL:
+                
+                print(self.scores)
                 self.scores[e.character.name] = self.scores[e.character.name] + 10
             elif e.tpe == Event.BOMB_HIT_MONSTER:
                 self.scores[e.character.name] = self.scores[e.character.name] + 50

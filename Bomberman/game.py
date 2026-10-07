@@ -3,6 +3,7 @@ from events import Event
 import colorama
 import pygame
 import math
+from testcharacter import TestCharacter
 
 class Game:
     """Game class"""
@@ -46,7 +47,7 @@ class Game:
                     elif ln[x+1] == 'W':
                         gm.world.add_wall(x,y)
                     elif ln[x+1] == 'B':
-                        gm.world.add_bomb(x, y, None)
+                        gm.world.add_bomb(x, y, TestCharacter("me", "c", 0, 0, None))
             # All done
             return gm
 
