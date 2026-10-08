@@ -28,11 +28,10 @@ class QLearner():
         best_move = None
         best_score = -1000000
         for move, parameters in moves.items():
-            # Iterate through all features to compute
+            # Iterate through all features to compute their score and keep the best
             score = self.evaluate_score(parameters)
-            # print(score)
-            # print(parameters)
-            if score > best_score:
+
+            if score >= best_score:
                 best_score = score
                 best_move = move
 
@@ -65,66 +64,49 @@ class QLearner():
         delta = (reward + 0.9 * best_score) - current_score
         for i, feature in enumerate(self.features):
             self.weights[i] += self.learning_rate * feature(current_move[i]) * delta
-        print(self.weights)
         
         
-       
-    def get_parameters(self, wrld, curr_pos):
+    def get_parameters(self, wrld, curr_pos, start_y):
         """
         self = self
         wrld = world object
         curr_pos = where we are looking at
-        
+        start_y = the hole we're trying to reach
+            
         return: [abs(dx to closest monster), abs(dy to closest monster), time till explosion or 0, abs(dx to closest wall), abs(dy to closest wall), bomb planted?, abs(dx to hole or exit), dy to hole or exit]
         """
-    def get_prameters(self, wrld, curr_pos):
-        parameters = [0] * 8
+        parameters = [None] * 8
         monsters = []
-        bomb = ()
         my_pos = curr_pos
         parameters[5] = -1
+        # Find monsters at a reasonable distance from us
         for x in range(wrld.width()):
-            for y in range(wrld.height()):
-                if wrld.monsters_at(x,y):
+            for y in range(max(curr_pos[1] - 3, 0), start_y+4):
+                mons = wrld.monsters_at(x, y)
+                if mons:
                     monsters.append((x, y))
-                if wrld.bomb_at(x, y):
-                    bomb = wrld.bomb_at(x, y)
                 
         if (wrld.explosion_at(curr_pos[0], curr_pos[1])):
-            #parameters[2] = wrld.explosion_at(curr_pos[0], curr_pos[1]).timer.timer + 1
             parameters[5] = 1
                     
         dist = 9999999999999999
-        closest_m = (0,0)
+        closest_m = None
         for m in monsters:
             dx = m[0] - my_pos[0]
             dy = m[1] - my_pos[1]
-            if dist > math.sqrt(dx*dx+dy*dy):
+            if dist > abs(dx) + abs(dy):
                 closest_m = m
-                dist = math.sqrt(dx*dx+dy*dy)
-        parameters[0] = abs(closest_m[0] - my_pos[0])
-        parameters[1] = abs(closest_m[1] - my_pos[1])
-        
-        counter = 1
-        while parameters[3] == 0:
-            if curr_pos[0] + counter >= wrld.width or curr_pos[0] - counter < 0 or wrld.wall_at(curr_pos[0] + counter, curr_pos[1]) or wrld.wall_at(curr_pos[0] - counter, curr_pos[1]):
-                parameters[3] = counter
-        counter = 1
-        while parameters[4] == 0:
-            if curr_pos[1] + counter >= wrld.height or curr_pos[1] - counter < 0 or wrld.wall_at(curr_pos[0], curr_pos[1] + counter) or wrld.wall_at(curr_pos[0], curr_pos[1] - counter):
-                parameters[4] = counter
-            
-        # parameters[6] = 0
-        # while parameters[6] + my_pos[0] < wrld.height and not wrld.wall_at(my_pos[0 + parameters[6]], my_pos[1]):
-        #     parameters[6] += 1
+                dist = abs(dx) + abs(dy)
+        if closest_m:
+            parameters[0] = dist
 
-        search = self.search_for_hole(wrld, curr_pos[0], my_pos[1])
+        search = self.search_for_hole(wrld, curr_pos[0], start_y)
+
         if search:
-            parameters[6] = search[0]
-            parameters[7] = search[1] + my_pos[1] - curr_pos[1]
-        
+            # Abs for the x and not the y because we want to value being below the hole more than being above it
+            parameters[6] = abs(search[0] - curr_pos[0])
+            parameters[7] = search[1] - curr_pos[1]
         return parameters
-    
        
     def search_for_hole(self, wrld, start_x, start_y):
         """
@@ -135,7 +117,7 @@ class QLearner():
         """
         dy = 0
         walls_found = False
-        for y in range(start_y + 1, wrld.height()):
+        for y in range(start_y - 1, wrld.height()):
             for x in range(0, wrld.width()):
                 if wrld.wall_at(x, y):
                     walls_found = True
@@ -145,14 +127,11 @@ class QLearner():
                 break
         if not walls_found:
             # HANDLE MOVING TO EXIT
-            dx = wrld.width() - start_x - 1
-            dy = wrld.height() - start_y - 1
-            return (dx, dy)
-        for dx in range(wrld.width()):
-            if start_x - dx >= 0 and not wrld.wall_at(dx+start_x, start_y + dy):
-                return (dx, dy)
-            if start_x + dx < wrld.width() and not wrld.wall_at(start_x - dx, start_y + dy):
-                return (dx, dy)
+            return (wrld.width() - 1, wrld.height() - 1)
+            
+        for x in range(wrld.width()):
+            if not wrld.wall_at(x, dy+start_y):
+                return (x, dy+start_y)
             
         return False
 
@@ -169,19 +148,71 @@ class Drill1(QLearner):
 
 
 class Drill2(QLearner):
+    hole = None
+    bomb = ()
+
+    def __init__(self, weights, features, bomb, learning_rate=0.01, hole=None):
+        super().__init__(weights, features, learning_rate)
+        self.hole = hole
+        self.bomb= bomb
 
     def reward(self, wrld, curr_pos):
         score = wrld.time - 5000
         if wrld.monsters_at(curr_pos[0], curr_pos[1]) or wrld.explosion_at(curr_pos[0], curr_pos[1]):
             score -= 5000
-        elif not(wrld.explosion_at(4, 2)) and not(wrld.bomb_at(4, 2)):
+
+        elif not(wrld.explosion_at(self.bomb[0], self.bomb[1])) and not(wrld.bomb_at(self.bomb[0], self.bomb[1])):
             score += 5000
             quit_event = pygame.event.Event(pygame.QUIT)
-
             pygame.event.post(quit_event)
         return score
 
-   
+    def get_parameters(self, wrld, curr_pos):
+            """
+            self = self
+            wrld = world object
+            curr_pos = where we are looking at
+                
+            return: [abs(dx to closest monster), abs(dy to closest monster), time till explosion or 0, abs(dx to closest wall), abs(dy to closest wall), bomb planted?, abs(dx to hole or exit), dy to hole or exit]
+            """
+            parameters = [None] * 8
+            monsters = []
+            my_pos = curr_pos
+            parameters[5] = -1
+            # Search for monsters at a reasonable distance from us only
+            for x in range(wrld.width()):
+                for y in range(max(curr_pos[1] - 3, 0), min(curr_pos[1] + 4, wrld.height()-1)):
+                    mons = wrld.monsters_at(x, y)
+                    if mons:
+                        monsters.append((x+mons[0].dx, y+mons[0].dy))
+
+            # Only consider an unexploded bomb if we're close to it if it explodes and the explosion happens soon
+            bomb = wrld.bomb_at(self.bomb[0], self.bomb[1])
+            if curr_pos[0] == self.bomb[0] and bomb and bomb.timer < 3:
+                parameters[2] = 1
+            if curr_pos[1] == self.bomb[1] and bomb and bomb.timer < 3:
+                parameters[3] = 1
+
+            if (wrld.explosion_at(curr_pos[0], curr_pos[1])):
+                #parameters[2] = wrld.explosion_at(curr_pos[0], curr_pos[1]).timer.timer + 1
+                parameters[5] = 1
+                        
+            dist = 9999999999999999
+            closest_m = None
+            for m in monsters:
+                dx = m[0] - my_pos[0]
+                dy = m[1] - my_pos[1]
+                if dist >= math.sqrt(dx*dx+dy*dy):
+                    closest_m = m
+                    dist = math.sqrt(dx*dx+dy*dy)
+            if closest_m:
+                parameters[0] = dist
+
+            if self.hole:
+                # Abs for the x and not the y because we want to value being below the hole more than being above it
+                parameters[6] = abs(self.hole[0] - curr_pos[0])
+                parameters[7] = curr_pos[1] - self.hole[1]
+            return parameters
 
 class Drill3(QLearner):
 
@@ -189,8 +220,19 @@ class Drill3(QLearner):
         score = wrld.time - 5000
         if wrld.monsters_at(curr_pos[0], curr_pos[1]) or wrld.explosion_at(curr_pos[0], curr_pos[1]):
             score -= 5000
-        elif curr_pos(1) > 3:
-            score += 5000
+
+        elif curr_pos[1] > 2:
+            monsters = []
+            score += 5000 
+            # Have the winning reward also depend on how close to a monster we ended up
+            for x in range(wrld.width()):
+                for y in range(max(curr_pos[1] - 3, 0), wrld.height()):
+                    mons = wrld.monsters_at(x, y)
+                    if mons:
+                        monsters.append((x+mons[0].dx, y+mons[0].dy))
+            for m in monsters:
+                score -= 500*1/(1 + abs(m[0] - curr_pos[0]))
+                score -= 500*1/(1 + abs(m[1] - curr_pos[1]))
             quit_event = pygame.event.Event(pygame.QUIT)
             pygame.event.post(quit_event)
         return score

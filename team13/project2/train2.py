@@ -14,14 +14,14 @@ from interactivecharacter import InteractiveCharacter
 from qlearner import QLearner, Drill2
 
 features = [
-    lambda x: 0 if x<0 else 1/(1+x),
-    lambda x: 0 if x<0 else 1/(1+x),
-    lambda x: x, 
-    lambda x: x,
+    lambda x: 0 if x is None else 1/(1+x),
+    lambda x: 0 if x is None else 1/(1+x),
+    lambda x: 0 if x is None else x, 
+    lambda x: 0 if x is None else x,
     lambda x: 0,
-    lambda x: x,
-    lambda x: 1/(2+x),
-    lambda x: 1/(2+x)
+    lambda x: 0 if x is None else x,
+    lambda x: 0 if x is None else 1/(2+x),
+    lambda x: 0 if x is None else 1/(2+x)
 ]
 
 weights = [-1, -1, -10, -10, 0, -10, 1, 1]

@@ -6,7 +6,7 @@ from entity import CharacterEntity
 from colorama import Fore, Back
 
 class InteractiveCharacter(CharacterEntity):
-
+    mover=None
     def do(self, wrld):
         # Commands
         dx, dy = 0, 0

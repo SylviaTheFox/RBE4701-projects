@@ -9,16 +9,54 @@ from random import random
 from monsters.stupid_monster import StupidMonster
 from monsters.selfpreserving_monster import SelfPreservingMonster
 import math
+from qlearner import Drill1, Drill2, Drill3
+
+#[abs(dx to closest monster), 
+# dy to closest monster, 
+# on bomb x
+# on bomb y, 
+# abs(dy to closest wall), 
+# on explosion, 
+# abs(dx to hole or exit), 
+# dy to hole or exit]
+
+mover3 = Drill3(weights=[-150.95228131826397, -1.0, 0.0, 0.0, 0.0, -10.0, 32.9713332267997, 184.983074579649],
+                features = [
+        lambda x: 0 if x is None else 1/(1+x),
+        lambda x: 0 if x is None else 1/(2+x),
+        lambda x: 0,
+        lambda x: 0,
+        lambda x: 0,
+        lambda x: 0,
+        lambda x: 0 if x is None else 1/(3+x),
+        lambda x: 0 if x is None else 1/(2+x)
+])
+
+drill2_features = [
+    lambda x: 0 if x is None else 1/(1+x),
+    lambda x: 0 if x is None else 1/(1+x),
+    lambda x: 0 if x is None else x, 
+    lambda x: 0 if x is None else x,
+    lambda x: 0,
+    lambda x: 0 if x is None else x,
+    lambda x: 0 if x is None else 1/(2+x),
+    lambda x: 0 if x is None else 1/(2+x)
+]
+
+drill2_weights = [-4735.706896961447, -1.0, -323.73951212945417, -116.00925059963089, 0.0, -3469.112334856907, 1.0, 1.0]
 
 
 class TestCharacter(CharacterEntity):
-
+    # Represent theb y location of the walls, each block is one of the rectangular regions between two walls
+    wall_ys = [3, 7, 11, 15, 18]
+    block = 0
     # State 0 is haven't done A*, state 1 is following A*
-    state = 2
+    state = 0
     # Exit coords in our current map
     exit = (8, 18)
     optimal_path = []
     heuristic = []
+    bomb_coords = ()
     # INITIAL WEIGHTS FOR PARAMETERS: exit dist, monster dist, bomb dx, bomb dy, hole dist, 
     weights = [1, -1, -1, -1, 1]
 
@@ -29,6 +67,7 @@ class TestCharacter(CharacterEntity):
     def do(self, wrld):
         dx = 0
         dy = 0
+        # get optimal path to goal
         if self.state == 0:
             self.optimal_path = self.a_star(wrld)
             self.state = 1
@@ -38,92 +77,86 @@ class TestCharacter(CharacterEntity):
             dx = next[0] - self.x
             dy = next[1] - self.y
             # If a wall is on the way, blow it up!
-            if wrld.wall_at(self.x + dx, self.y + dy):
+            if (wrld.wall_at(self.x + dx, min(self.y + dy + 3, wrld.height()-1)) or 
+            wrld.wall_at(self.x + dx, min(self.y + dy + 2, wrld.height()-1)) or 
+            wrld.wall_at(self.x + dx, min(self.y + dy + 1, wrld.height()-1)) or 
+            wrld.wall_at(self.x + dx, min(self.y + dy, wrld.height()-1))):
                 self.place_bomb()
+                self.bomb_coords = (self.x, self.y)
                 self.state = 3
+                dy = 0
+            
+            self.move(dx, dy)
+            return
 
-        # Drill 1 in which we're in the same block as the exit and a monster
+        # Drill in which we're trying to reach the next hole to place a bomb OR the exit if we're at the end
         if self.state == 2:
-            possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y))
+            # If we're at the hole, recompute optimal path. This will either head straight to exit if path exists or restart the blowing up process
+            if self.block <= 3 and self.y > self.wall_ys[self.block] - 1:
+                self.state = 0
+                self.block += 1
+                self.do(wrld) 
+
+            # Get the best possible move
+            mover = mover3
+            possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y), in_a_star=False)
             moves_dict = {}
             for move in possible_moves:
-                moves_dict[move] = self.mover.get_parameters(wrld, move)
-            
-            (best_move, _) = self.mover.best_move(moves_dict)
-            print(best_move)
+                if self.block <= 3:
+                    moves_dict[move] = mover.get_parameters(wrld, move, self.wall_ys[self.block])
+                else:
+                    moves_dict[move] = mover.get_parameters(wrld, move, wrld.height())
+            (best_move, _) = mover.best_move(moves_dict)
             self.move(best_move[0] - self.x, best_move[1] - self.y)
+
+            # TRAINING CODE
+            # possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y), in_a_star=False)
+            # moves_dict = {}
+            # for move in possible_moves:
+            #     moves_dict[move] = self.mover.get_parameters(wrld, move, 2)
+            
+            # (best_move, _) = self.mover.best_move(moves_dict)
+            # print(best_move)
+            # self.move(best_move[0] - self.x, best_move[1] - self.y)
         
-            (next_wrld, _) = wrld.next()
-            reward = self.mover.reward(wrld, best_move)
+            # (next_wrld, _) = wrld.next()
+            # reward = self.mover.reward(wrld, best_move)
             
-            future_moves = self.look_for_empty_cell(next_wrld, best_move)
-            moves_dict = {}
-            for move in future_moves:
-                moves_dict[move] = self.mover.get_parameters(next_wrld, move)
+            # future_moves = self.look_for_empty_cell(next_wrld, best_move, in_a_star=False)
+            # moves_dict = {}
+            # for move in future_moves:
+            #     moves_dict[move] = self.mover.get_parameters(next_wrld, move, 2)
 
-            self.mover.update(reward, moves_dict, self.mover.get_parameters(wrld, best_move))
-            self.move(best_move[0] - self.x, best_move[1] - self.y)
+            # self.mover.update(reward, moves_dict, self.mover.get_parameters(wrld, best_move, 2))
 
-        # Drill 2 in which there's a bomb next to the wall below us, waiting for it to explode and the blast to clear
+        # State in which we wait for a bomb to blow up and try to stay alive
         if self.state == 3:
-            # TODO
-            pass
+            # If the explosion and bomb is gone from where we placed it, we're done waiting
+            if not(wrld.explosion_at(self.bomb_coords[0], self.bomb_coords[1])) and not(wrld.bomb_at(self.bomb_coords[0], self.bomb_coords[1])):
+                # If the wall is gone, head to the hole that was left there
+                if self.block <= 3 and not(wrld.wall_at(self.bomb_coords[0], self.wall_ys[self.block])):
+                    self.state = 2
+                    self.do(wrld)
+                # If the wall is still there, recompute the best path and blow up obstacles
+                elif self.block <= 3 and wrld.wall_at(self.bomb_coords[0], self.wall_ys[self.block]):
+                    self.state = 0
+                    self.do(wrld)
+                    return
+                # If we're at the last block, try to head for the exit
+                elif self.block > 3:
+                    self.state = 2
+                    self.do(wrld)
+                    return
+                
+            # Get the best possible move
+            mover = Drill2(weights=drill2_weights, features=drill2_features, bomb=(self.bomb_coords[0], self.bomb_coords[1]))
+            possible_moves = self.look_for_empty_cell(wrld, (self.x, self.y), in_a_star=False)
+            moves_dict = {}
+            for move in possible_moves:
+                moves_dict[move] = mover.get_parameters(wrld, move)
 
-        # Drill 3 in which there's a hole in the wall below
-        if self.state == 4:
-            # TODO
-            pass
-        
-        
-        
-
-        # if self.state == 1:
-        #     next = self.optimal_path.pop(0)
-        #     dx = next[0] - self.x
-        #     dy = next[1] - self.y
-        #     monsters = self.look_for_monster(wrld, 5)
-        #     if monsters:
-        #         bravery = 0
-        #         # If below the monster, most likely already passed it and are safe so don't waste time escaping and just run for the exit
-        #         if monsters[0].y < self.y:
-        #             bravery = 1
-        #         # If we are a certain distance from monster after we both move, proceed. otherwise go the other way to
-        #         elif abs((self.x + dx) - (monsters[0].dx + monsters[0].x)) >= monsters[1] or abs((self.y + dy) - (monsters[0].dy + monsters[0].y)) >= monsters[1]:
-        #             bravery = 1
-        #         else:
-        #             bravery = 0
-
-        #         # If monster is level on x or y moving away is better than staying put
-        #         if monsters[0].x != self.x and not bravery:
-        #             new_dx = -self.clamp(monsters[0].x, -1, 1)
-        #             if (self.x + new_dx > 0) and (self.x + new_dx < wrld.width()) and not wrld.wall_at(self.x + new_dx, self.y + dy):
-        #                 dx = new_dx
-        #             else:
-        #                 dx = 0
-        #                 # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
-        #                 if dy == 0 and monsters[0].dy == 0:
-        #                     dy = 1
-        #                 elif dy == 0:
-        #                     dy = -self.clamp(monsters[0].y, -1, 1)
-
-
-        #         if monsters[0].y != self.y and not bravery:
-        #             new_dy = -self.clamp(monsters[0].y, -1, 1)
-        #             if not wrld.wall_at(self.x + dx, self.y + new_dy) and (self.y + new_dy < wrld.height()) and (self.y + new_dy > 0):
-        #                 dy = new_dy
-        #             else:
-        #                 # Stuck against a wall most likely, try to move away from monster if coming at us and not doing so already
-        #                 dy = 0
-        #                 if dx == 0 and monsters[0].dx == 0:
-        #                     dx = 1
-        #                 elif dx == 0:
-        #                     dx = -self.clamp(monsters[0].x, -1, 1)
-
-        #         # recalculate optimal path because we deviated from it after escaping
-        #         self.state = 0
-        #     print(dx, dy)
-        #     self.move(dx, dy)        
-    
+            (best_move, _) = mover.best_move(moves_dict)
+            self.move(best_move[0] - self.x, best_move[1] - self.y)
     
     def clamp(self, num, min_val, max_val):
         return max(min_val, min(num, max_val))
@@ -141,13 +174,11 @@ class TestCharacter(CharacterEntity):
                         if (mons):
                             if mons[0].avatar == "A" or math.sqrt(dx**2 + dy**2) <= 4:
                                 monsters.append((mons[0], 3))
-
-
         if monsters:
             # Only return the closest monster
             return min(monsters, key=lambda x: x[0].x^2 + x[0].y^2)
 
-    def look_for_empty_cell(self, wrld, current, rnge=1):
+    def look_for_empty_cell(self, wrld, current, rnge=1, in_a_star=True):
         # List of empty cells
         cells = []
         # Go through neighboring cells
@@ -157,8 +188,8 @@ class TestCharacter(CharacterEntity):
                 for dy in range(-rnge, rnge+1):
                     # Avoid out-of-bounds access
                     if ((current[1] + dy >= 0) and (current[1] + dy < wrld.height())):
-                        #if not wrld.wall_at(current[0] + dx, current[1] + dy):
-                        cells.append((current[0] + dx, current[1] + dy))
+                        if in_a_star or not wrld.wall_at(current[0] + dx, current[1] + dy):
+                            cells.append((current[0] + dx, current[1] + dy))
         # All done
         return cells
 
