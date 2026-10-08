@@ -5,7 +5,8 @@ expl_range 4
 +--------+
 |        |
 |        |
+|WWWWWWWW|
 |        |
-|WWWW WWW|
+|        |
 |        |
 +--------+
