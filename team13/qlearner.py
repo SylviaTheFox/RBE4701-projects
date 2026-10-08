@@ -77,7 +77,6 @@ class QLearner():
         """
         parameters = [None] * 8
         monsters = []
-        my_pos = curr_pos
         parameters[5] = -1
         # Find monsters at a reasonable distance from us
         for x in range(wrld.width()):
@@ -92,8 +91,8 @@ class QLearner():
         dist = 9999999999999999
         closest_m = None
         for m in monsters:
-            dx = m[0] - my_pos[0]
-            dy = m[1] - my_pos[1]
+            dx = m[0] - curr_pos[0]
+            dy = m[1] - curr_pos[1]
             if dist > abs(dx) + abs(dy):
                 closest_m = m
                 dist = abs(dx) + abs(dy)
@@ -177,7 +176,6 @@ class Drill2(QLearner):
             """
             parameters = [None] * 8
             monsters = []
-            my_pos = curr_pos
             parameters[5] = -1
             # Search for monsters at a reasonable distance from us only
             for x in range(wrld.width()):
@@ -194,14 +192,13 @@ class Drill2(QLearner):
                 parameters[3] = 1
 
             if (wrld.explosion_at(curr_pos[0], curr_pos[1])):
-                #parameters[2] = wrld.explosion_at(curr_pos[0], curr_pos[1]).timer.timer + 1
                 parameters[5] = 1
                         
             dist = 9999999999999999
             closest_m = None
             for m in monsters:
-                dx = m[0] - my_pos[0]
-                dy = m[1] - my_pos[1]
+                dx = m[0] - curr_pos[0]
+                dy = m[1] - curr_pos[1]
                 if dist >= math.sqrt(dx*dx+dy*dy):
                     closest_m = m
                     dist = math.sqrt(dx*dx+dy*dy)
